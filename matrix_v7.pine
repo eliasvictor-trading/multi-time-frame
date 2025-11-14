@@ -1,5 +1,8 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © EliasVictor
+
 //@version=6 
-indicator("MTF Checklist Dashboard v1.4", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=50)
+indicator("MTF Checklist Dashboard - v2.0", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=50)
 
 
 //-----------------------------

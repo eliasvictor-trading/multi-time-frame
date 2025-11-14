@@ -127,12 +127,6 @@ Alert messages include ticker, action, price, and quantity in JSON format for au
 - Tick/Second-based charts: Fully supported. Please note that on TradingView that the session filter automatically uses 1-minute resolution for session detection when running on tick or second-based timeframes
 
 
-## Version History
-
-- **v1.0** - Initial release with MTF dashboard and basic filters
-- **v1.1** - Added ORB range display and daily level rows
-- **v1.2** - Fixed table bounds errors and session filter for tick charts
-
 ## License
 
 Mozilla Public License 2.0

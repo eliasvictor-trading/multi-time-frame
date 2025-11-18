@@ -75,9 +75,34 @@ if barstate.isfirst
 
 
 //-----------------------------
-// Daily Data
+// Daily Data (non-repainting)
 //-----------------------------
-[dayHigh, dayLow, pDayHigh, pDayLow] = request.security(syminfo.tickerid, "D", [high, low, high[1], low[1]], lookahead=barmerge.lookahead_on)
+isNewSession = ta.change(time("D")) != 0
+var float dayHigh = na
+var float dayLow = na
+var float pDayHigh = na
+var float pDayLow = na
+// Seed previous-day data from a non-repainting daily request so limited
+// chart history still renders yesterday's range immediately.
+[prevDayHighSeed, prevDayLowSeed] = request.security(syminfo.tickerid, "D", [high[1], low[1]], lookahead=barmerge.lookahead_off)
+
+if barstate.isfirst
+    dayHigh := high
+    dayLow := low
+
+if na(pDayHigh)
+    pDayHigh := prevDayHighSeed
+if na(pDayLow)
+    pDayLow := prevDayLowSeed
+
+if isNewSession
+    pDayHigh := dayHigh
+    pDayLow := dayLow
+    dayHigh := high
+    dayLow := low
+else
+    dayHigh := na(dayHigh) ? high : math.max(dayHigh, high)
+    dayLow := na(dayLow) ? low : math.min(dayLow, low)
 
 
 //-----------------------------
@@ -87,7 +112,6 @@ orbRes = str.tostring(orbMinutes)
 var float ORH = na
 var float ORL = na
 var bool orbSet = false
-isNewSession = ta.change(time("D")) != 0
 
 
 if isNewSession
@@ -115,6 +139,7 @@ if na(ORH) or na(ORL)
 //-----------------------------
 avgVolume = ta.sma(volume, volLength)
 volumeConfirmed = volume > avgVolume * volMultiplier
+priceBasis = useCloseForPx ? close : hl2
 
 
 atrCurrent = ta.atr(atrLength)
@@ -131,10 +156,10 @@ longMomentum = close > close[momentumBars] and high > high[1]
 shortMomentum = close < close[momentumBars] and low < low[1]
 
 
-distFromHigh = ((dayHigh - close) / close) * 100.0
-distFromLow = ((close - dayLow) / close) * 100.0
-notNearHigh = distFromHigh > extremePct
-notNearLow = distFromLow > extremePct
+distFromHigh = na(dayHigh) ? na : ((dayHigh - priceBasis) / priceBasis) * 100.0
+distFromLow = na(dayLow) ? na : ((priceBasis - dayLow) / priceBasis) * 100.0
+notNearHigh = na(distFromHigh) ? true : distFromHigh > extremePct
+notNearLow = na(distFromLow) ? true : distFromLow > extremePct
 
 
 candleRange = high - low
@@ -189,7 +214,8 @@ getMTFData() =>
     e21  = ta.ema(close, 21)
     e200 = ta.ema(close, 200)
     vw   = ta.vwap
-    [close, open, close[1], open[1], e9, e21, e200, vw]
+    mid  = hl2
+    [close, open, close[1], open[1], e9, e21, e200, vw, mid]
 
 
 //-----------------------------
@@ -198,10 +224,10 @@ getMTFData() =>
 for i = 0 to array.size(tfs) - 1
     tf = array.get(tfs, i)
     row := i + 1
-    [cTF, oTF, pcTF, poTF, e9, e21, e200, vwapTF] = request.security(syminfo.tickerid, tf, getMTFData(), lookahead=barmerge.lookahead_off)
+    [cTF, oTF, pcTF, poTF, e9, e21, e200, vwapTF, midTF] = request.security(syminfo.tickerid, tf, getMTFData(), lookahead=barmerge.lookahead_off)
     currBull = cTF >= oTF
     prevBull = pcTF >= poTF
-    priceNow = useCloseForPx ? cTF : cTF
+    priceNow = useCloseForPx ? cTF : midTF
     orbPos = priceNow > ORH ? "A" : priceNow < ORL ? "B" : "W"
     vwapPos = priceNow >= vwapTF ? "A" : "B"
     e200Pos = priceNow >= e200 ? "A" : "B"
@@ -267,7 +293,7 @@ if barstate.islast
 //-----------------------------
 // Alert Logic with Filters
 //-----------------------------
-priceNow = useCloseForPx ? close : close
+priceNow = priceBasis
 longScore = 0
 shortScore = 0
 htfScoreLong = 0
@@ -276,8 +302,8 @@ htfScoreShort = 0
 
 for i = 0 to array.size(tfs) - 1
     tf = array.get(tfs, i)
-    [cTF, oTF, pcTF, poTF, e9, e21, e200, vwapTF] = request.security(syminfo.tickerid, tf, getMTFData(), lookahead=barmerge.lookahead_off)
-    priceTF = useCloseForPx ? cTF : cTF
+    [cTF, oTF, pcTF, poTF, e9, e21, e200, vwapTF, midTF] = request.security(syminfo.tickerid, tf, getMTFData(), lookahead=barmerge.lookahead_off)
+    priceTF = useCloseForPx ? cTF : midTF
     isBullish = (cTF >= oTF) and (priceTF >= vwapTF) and (priceTF >= e200) and (e9 >= e21) and (e9 >= e200 and e21 >= e200)
     isBearish = (cTF < oTF) and (priceTF < vwapTF) and (priceTF < e200) and (e9 < e21) and (e9 < e200 and e21 < e200)
     if isBullish
